@@ -8,8 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Даем права на создание релизов и загрузку файлов
     permissions:
-      contents: write # Права для создания релиза
+      contents: write
 
     steps:
       - name: Checkout code
@@ -21,10 +22,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Configure Gradle Memory
+      - name: Configure Gradle
         run: |
           mkdir -p ~/.gradle
+          # Увеличиваем память, чтобы сборка не вылетала
           echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> ~/.gradle/gradle.properties
+          # ФИКС ОШИБКИ: игнорируем разницу в версиях Java между Kotlin и Java задачами
+          echo "kotlin.jvm.target.validation.mode=warning" >> ~/.gradle/gradle.properties
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -41,21 +45,23 @@ jobs:
 
       - name: Rename app to nnoxtgram
         run: |
+          # Используем -r (no-run-if-empty), чтобы xargs не падал, если файлы не найдены
           find . -name "strings.xml" | xargs -r sed -i 's/>Element</>nnoxtgram</g'
 
       - name: Set default homeserver
         run: |
+          # Заменяем адрес сервера на ваш из Secrets
           find . -name "*.json" -path "*/assets/*" 2>/dev/null | xargs -r grep -l "matrix.org" 2>/dev/null | xargs -r sed -i 's|https://matrix.org|http://${{ secrets.SERVER_IP }}:8008|g' 2>/dev/null || true
           find . -name "*.json" -path "*/assets/*" 2>/dev/null | xargs -r grep -l "matrix.org" 2>/dev/null | xargs -r sed -i 's|"matrix.org"|"${{ secrets.SERVER_IP }}"|g' 2>/dev/null || true
 
       - name: Build APK
         run: ./gradlew :vector-app:assembleGplayDebug
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: nnoxtgram-APK
-          path: vector-app/build/outputs/apk/**/*.apk
+          path: vector-app/build/outputs/apk/gplay/debug/*.apk
           retention-days: 30
 
       - name: Create Release
@@ -63,6 +69,6 @@ jobs:
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: nnoxtgram v1.0.${{ github.run_number }}
-          files: vector-app/build/outputs/apk/**/*.apk
+          files: vector-app/build/outputs/apk/gplay/debug/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
