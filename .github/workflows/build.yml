@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Даем права на создание релизов и загрузку файлов
     permissions:
       contents: write
 
@@ -16,18 +15,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup JDK 17
+      - name: Setup JDK 21 # <--- ОБНОВЛЕНО: теперь используем 21 версию
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Configure Gradle
         run: |
           mkdir -p ~/.gradle
-          # Увеличиваем память, чтобы сборка не вылетала
           echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> ~/.gradle/gradle.properties
-          # ФИКС ОШИБКИ: игнорируем разницу в версиях Java между Kotlin и Java задачами
+          # На всякий случай оставляем этот флаг, чтобы не было конфликтов версий
           echo "kotlin.jvm.target.validation.mode=warning" >> ~/.gradle/gradle.properties
 
       - name: Cache Gradle
@@ -45,12 +43,10 @@ jobs:
 
       - name: Rename app to nnoxtgram
         run: |
-          # Используем -r (no-run-if-empty), чтобы xargs не падал, если файлы не найдены
           find . -name "strings.xml" | xargs -r sed -i 's/>Element</>nnoxtgram</g'
 
       - name: Set default homeserver
         run: |
-          # Заменяем адрес сервера на ваш из Secrets
           find . -name "*.json" -path "*/assets/*" 2>/dev/null | xargs -r grep -l "matrix.org" 2>/dev/null | xargs -r sed -i 's|https://matrix.org|http://${{ secrets.SERVER_IP }}:8008|g' 2>/dev/null || true
           find . -name "*.json" -path "*/assets/*" 2>/dev/null | xargs -r grep -l "matrix.org" 2>/dev/null | xargs -r sed -i 's|"matrix.org"|"${{ secrets.SERVER_IP }}"|g' 2>/dev/null || true
 
