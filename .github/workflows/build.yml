@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Права для создания релиза
 
     steps:
       - name: Checkout code
@@ -18,6 +20,11 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+
+      - name: Configure Gradle Memory
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> ~/.gradle/gradle.properties
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -34,12 +41,12 @@ jobs:
 
       - name: Rename app to nnoxtgram
         run: |
-          find . -name "strings.xml" | xargs sed -i 's/>Element</>nnoxtgram</g'
+          find . -name "strings.xml" | xargs -r sed -i 's/>Element</>nnoxtgram</g'
 
       - name: Set default homeserver
         run: |
-          find . -name "*.json" -path "*/assets/*" 2>/dev/null | xargs grep -l "matrix.org" 2>/dev/null | xargs sed -i 's|https://matrix.org|http://${{ secrets.SERVER_IP }}:8008|g' 2>/dev/null || true
-          find . -name "*.json" -path "*/assets/*" 2>/dev/null | xargs grep -l "matrix.org" 2>/dev/null | xargs sed -i 's|"matrix.org"|"${{ secrets.SERVER_IP }}"|g' 2>/dev/null || true
+          find . -name "*.json" -path "*/assets/*" 2>/dev/null | xargs -r grep -l "matrix.org" 2>/dev/null | xargs -r sed -i 's|https://matrix.org|http://${{ secrets.SERVER_IP }}:8008|g' 2>/dev/null || true
+          find . -name "*.json" -path "*/assets/*" 2>/dev/null | xargs -r grep -l "matrix.org" 2>/dev/null | xargs -r sed -i 's|"matrix.org"|"${{ secrets.SERVER_IP }}"|g' 2>/dev/null || true
 
       - name: Build APK
         run: ./gradlew :vector-app:assembleGplayDebug
